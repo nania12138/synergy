@@ -1,6 +1,13 @@
 name: Windows MSI
 
 on:
+  workflow_dispatch:
+    inputs:
+      test-release:
+        description: "Test release"
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - '0.19.0'
@@ -76,5 +83,6 @@ jobs:
           name: synergy-msi-${{ env.SYNERGY_VERSION }}
           path: dist/*.msi
           if-no-files-found: error
+
 
 
