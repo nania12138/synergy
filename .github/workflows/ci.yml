@@ -12,9 +12,9 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches:
-      - master*
+  # push:
+  #   branches:
+  #     - master*
   release:
     types: [published]
   pull_request:
