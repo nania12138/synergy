@@ -37,12 +37,11 @@ jobs:
       - name: Install Qt 6
         uses: jurplel/install-qt-action@v3
         with:
-          version: '6.7.2'
+          version: '6.9.3'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
           cache: true
-          modules: 'qtbase qttools qtdeclarative qttranslations'
 
       - name: Install WiX Toolset
         uses: crazy-max/ghaction-chocolatey@v3
