@@ -21,6 +21,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Ensure tags are fetched
+        shell: pwsh
+        run: |
+          git fetch --force --tags --prune --prune-tags
 
       - name: Set up Python
         uses: actions/setup-python@v5
