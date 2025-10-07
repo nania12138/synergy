@@ -34,6 +34,16 @@ jobs:
       - name: Set up MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.7.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          cache: true
+          modules: 'qtbase qttools qtdeclarative qttranslations'
+
       - name: Install WiX Toolset
         uses: crazy-max/ghaction-chocolatey@v3
         with:
@@ -77,7 +87,7 @@ jobs:
       - name: Configure (CMake windows-release preset)
         shell: pwsh
         run: |
-          cmake -B build --preset=windows-release -DBUILD_INSTALLER=ON -DCMAKE_BUILD_TYPE=Release
+          cmake -B build --preset=windows-release -DBUILD_INSTALLER=ON -DCMAKE_BUILD_TYPE=Release -DQT_PATH="$env:Qt6_DIR"
 
       - name: Build binaries
         shell: pwsh
