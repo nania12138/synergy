@@ -1,0 +1,80 @@
+name: Windows MSI
+
+on:
+  push:
+    tags:
+      - '0.19.0'
+
+jobs:
+  build-windows-msi:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install WiX Toolset
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install wixtoolset --yes --no-progress
+
+      - name: Verify tools
+        shell: pwsh
+        run: |
+          msbuild /version
+          candle.exe -?
+          light.exe -?
+
+      - name: Set version from tag
+        id: setver
+        shell: pwsh
+        run: |
+          $tag = "$env:GITHUB_REF_NAME"
+          echo "SYNERGY_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare Python venv and requirements
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python scripts/setup_venv.py
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python scripts/install_deps.py
+
+      - name: Configure (CMake windows-release preset)
+        shell: pwsh
+        run: |
+          cmake -B build --preset=windows-release -DBUILD_INSTALLER=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build binaries
+        shell: pwsh
+        run: |
+          cmake --build build -j 8 --config Release
+
+      - name: Package MSI
+        env:
+          SYNERGY_VERSION: ${{ env.SYNERGY_VERSION }}
+        shell: pwsh
+        run: |
+          python scripts/package.py
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: synergy-msi-${{ env.SYNERGY_VERSION }}
+          path: dist/*.msi
+          if-no-files-found: error
+
+
