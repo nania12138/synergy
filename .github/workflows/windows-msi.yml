@@ -9,6 +9,8 @@ on:
         default: false
         type: boolean
   push:
+    branches:
+      - '**'
     tags:
       - '0.19.0'
 
@@ -23,11 +25,6 @@ jobs:
           submodules: true
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Ensure tags are fetched
-        shell: pwsh
-        run: |
-          git fetch --force --tags --prune --prune-tags
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,12 +46,22 @@ jobs:
           candle.exe -?
           light.exe -?
 
-      - name: Set version from tag
+      - name: Set version (tag or dev)
         id: setver
         shell: pwsh
         run: |
-          $tag = "$env:GITHUB_REF_NAME"
-          echo "SYNERGY_VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $ver = $env:GITHUB_REF_NAME
+          } else {
+            $base = ''
+            if (Test-Path VERSION) {
+              $base = (Get-Content VERSION -Raw).Trim()
+            }
+            if (-not $base) { $base = '0.0.0' }
+            $sha = $env:GITHUB_SHA.Substring(0,7)
+            $ver = "$base-dev+$sha"
+          }
+          echo "SYNERGY_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare Python venv and requirements
         shell: pwsh
