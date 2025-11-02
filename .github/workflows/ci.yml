@@ -22,9 +22,9 @@ on:
       - opened
       - reopened
       - synchronize
-      - ready_for_review
-  schedule:
-    - cron: "0 5 * * *" # 5am UTC
+  #     - ready_for_review
+  # schedule:
+  #   - cron: "0 5 * * *" # 5am UTC
 
 env:
   SYNERGY_PRODUCT_NAME: ${{ vars.SYNERGY_PRODUCT_NAME }}
