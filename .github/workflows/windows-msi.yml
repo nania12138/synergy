@@ -1,6 +1,7 @@
 name: Windows MSI
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -49,7 +50,17 @@ jobs:
         id: setver
         shell: pwsh
         run: |
-          $ver = $env:GITHUB_REF_NAME
+          if ($env:GITHUB_EVENT_NAME -eq 'release') {
+            $ver = $env:GITHUB_REF_NAME
+          } else {
+            $base = ''
+            if (Test-Path VERSION) {
+              $base = (Get-Content VERSION -Raw).Trim()
+            }
+            if (-not $base) { $base = '0.0.0' }
+            $sha = $env:GITHUB_SHA.Substring(0,7)
+            $ver = "$base-dev+$sha"
+          }
           echo "SYNERGY_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare Python venv and requirements

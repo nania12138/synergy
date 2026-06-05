@@ -63,6 +63,12 @@ runs:
         cache: true
         cache-key-prefix: windows-qt-${{ inputs.qt-version }}
 
+    - name: Install WiX Toolset (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      uses: crazy-max/ghaction-chocolatey@v3
+      with:
+        args: install wixtoolset --yes --no-progress
+
     - name: Build and cache vcpkg
       if: ${{ runner.os == 'Windows' }}
       id: vcpkg

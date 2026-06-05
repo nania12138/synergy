@@ -9,10 +9,6 @@ inputs:
     type: string
     required: true
     description: "The name of the target being built (e.g. windows-2022-x64)."
-  target-arch:
-    type: string
-    required: true
-    description: "The architecture of the target being built (e.g. x86_64, arm64)."
   cmake-args:
     type: string
     required: false
@@ -30,6 +26,10 @@ runs:
           "Windows")
             shell="powershell"
             cmake_args="--preset=windows-release"
+            cmake_args="$cmake_args -DBUILD_INSTALLER=ON"
+            if [ -n "$Qt6_DIR" ]; then
+              cmake_args="$cmake_args -DQT_PATH=\"$Qt6_DIR\""
+            fi
             ;;
 
           "macOS")
