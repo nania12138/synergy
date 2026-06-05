@@ -20,7 +20,7 @@ jobs:
           apt install -y git python3 python3-venv curl unzip gcovr
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: true
           fetch-depth: 0 # SonarCloud needs the full history to assign issues properly
@@ -33,12 +33,12 @@ jobs:
         uses: ./.github/actions/install-deps
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: cpp
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4

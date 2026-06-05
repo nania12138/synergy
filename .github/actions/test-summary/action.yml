@@ -5,7 +5,7 @@ runs:
   using: "composite"
   steps:
     - name: Download test result rows
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         pattern: test-result-*
         merge-multiple: true
@@ -60,7 +60,7 @@ runs:
 
     - name: Upload CI summary
       if: steps.summary.outputs.file
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: summary-tests
         path: ${{ steps.summary.outputs.file }}
