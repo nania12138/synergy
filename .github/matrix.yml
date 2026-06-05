@@ -1,6 +1,6 @@
 target:
   - name: windows-2022-x64
-    runs-on: windows-latest-16-cores
+    runs-on: windows-2022
     package-os: windows-x64
 
   - name: macos-14-arm64
