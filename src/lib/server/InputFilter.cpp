@@ -25,6 +25,7 @@
 #include "server/Server.h"
 
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
 
 // -----------------------------------------------------------------------------

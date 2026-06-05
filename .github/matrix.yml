@@ -10,17 +10,3 @@ target:
   - name: arch-linux-x86_64
     runs-on: ubuntu-latest
     container: archlinux:latest
-
-  - name: flatpak-x86_64
-    runs-on: ubuntu-latest
-    arch: x86_64
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
-      options: --privileged
-
-  - name: flatpak-arm64
-    runs-on: ubuntu-24.04-8-core-arm64
-    arch: aarch64
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
-      options: --privileged

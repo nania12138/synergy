@@ -72,34 +72,16 @@ jobs:
             runs-on: ubuntu-latest
             container: archlinux:latest
 
-          - name: flatpak-x86_64
-            runs-on: ubuntu-latest
-            arch: x86_64
-            container:
-              image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
-              options: --privileged
-
-          - name: flatpak-arm64
-            runs-on: ubuntu-24.04-8-core-arm64
-            arch: aarch64
-            container:
-              image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
-              options: --privileged
-
     steps:
       - name: Setup variables
         id: vars
         shell: bash
         run: |
-          if [[ "${{ matrix.target.name }}" == flatpak* ]]; then
-            echo "is-flatpak=true" >> $GITHUB_OUTPUT
-          fi
-
           # Used by the package script to name the output files.
           echo "SYNERGY_VERSION=${{ needs.get-version.outputs.version }}" >> $GITHUB_ENV
 
       - name: Setup Linux
-        if: ${{ runner.os == 'Linux' && !steps.vars.outputs.is-flatpak }}
+        if: ${{ runner.os == 'Linux' }}
         id: setup-linux
         shell: bash
         run: |
@@ -131,12 +113,10 @@ jobs:
 
       - name: Install dependencies
         id: install-deps
-        if: ${{ !steps.vars.outputs.is-flatpak }}
         uses: ./.github/actions/install-deps
 
       - name: Build
         id: build
-        if: ${{ !steps.vars.outputs.is-flatpak }}
         uses: ./.github/actions/build
         with:
           target-name: ${{ matrix.target.name }}
@@ -150,52 +130,17 @@ jobs:
             ${{ steps.install-deps.outputs.vcpkg-cmake-config }}
 
       - name: Tests
-        if: ${{ !steps.vars.outputs.is-flatpak }}
         uses: ./.github/actions/run-tests
         timeout-minutes: 2
         with:
           job: ${{ matrix.target.name }}
           bin-dir: build/bin
 
-      # HACK: Use `envsubst` to replace environment variables in the Flatpak manifest,
-      # since the Flatpak GitHub Action doesn't support passing environment variables.
-      # Only replace the SYNERGY_* variables to avoid accidentally replacing other vars
-      # like ${PWD} and ${FLATPAK_DEST}.
-      - name: Set Flatpak env vars
-        if: ${{ steps.vars.outputs.is-flatpak }}
-        id: set-flatpak-env-vars
-        run: |
-          vars=$(cat <<'EOF'
-          ${SYNERGY_PRODUCT_NAME}
-          ${SYNERGY_ENABLE_ACTIVATION}
-          ${SYNERGY_VERSION_CHECK}
-          ${SYNERGY_VERSION_RELEASE}
-          ${SYNERGY_VERSION_SNAPSHOT}
-          ${SYNERGY_VERSION_GIT_SHA}
-          EOF
-          )
-
-          set -x
-          manifest="res/dist/flatpak/com.symless.synergy.yml"
-          envsubst "$vars" < $manifest > $manifest.tmp
-          mv $manifest.tmp $manifest
-          cat $manifest
-
       - name: Package (Linux)
-        if: ${{ !steps.vars.outputs.is-flatpak && runner.os == 'Linux' }}
+        if: ${{ runner.os == 'Linux' }}
         run: ./scripts/package.py
         env:
           LINUX_PACKAGE_USER: ${{ steps.setup-linux.outputs.package-user }}
-
-      - name: Package (Flatpak)
-        if: ${{ steps.vars.outputs.is-flatpak }}
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: ${{ env.SYNERGY_PACKAGE_PREFIX }}_${{ needs.get-version.outputs.version }}_linux_${{ matrix.target.arch }}.flatpak
-          manifest-path: res/dist/flatpak/com.symless.synergy.yml
-          cache-key: flatpak-builder-${{ matrix.target.arch }}-2.0
-          arch: ${{ matrix.target.arch }}
-          upload-artifact: false
 
       - name: Package (Windows)
         if: ${{ runner.os == 'Windows' }}
@@ -214,13 +159,6 @@ jobs:
           APPLE_NOTARY_USER: ${{ secrets.APPLE_NOTARY_USER }}
           APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Copy Flatpak bundle to dist
-        if: ${{ steps.vars.outputs.is-flatpak }}
-        run: |
-          mkdir -p dist
-          cp *.flatpak dist/
-          ls -l dist
 
       - name: Upload to GitHub
         uses: actions/upload-artifact@v7
