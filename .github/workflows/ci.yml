@@ -1,42 +1,14 @@
-# All-in-one continuous integration (CI) workflow.
-# Runs on all platforms (Windows, macOS, and Linux)
-# for all events (pull request, release, and schedule).
+# Release build workflow.
+# Builds and packages Windows, macOS, and Linux release artifacts.
 
-name: CI
+name: Release Build
 
 on:
-  workflow_dispatch:
-    inputs:
-      package-type:
-        description: "dev (commit SHA), snapshot (nightly), release (clean semver)"
-        required: false
-        default: "dev"
-        type: choice
-        options:
-          - dev
-          - snapshot
-          - release
-      aws-s3-uri:
-        description: "Override AWS S3 target (e.g. s3://bucket/path)"
-        required: false
-        type: string
-      target:
-        description: "Only build one target (e.g. ubuntu-24.04-x86_64)"
-        required: false
-        type: string
-  push:
-    branches:
-      - master*
   release:
     types: [published]
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-  #     - ready_for_review
-  # schedule:
-  #   - cron: "0 5 * * *" # 5am UTC
+
+permissions:
+  contents: write
 
 env:
   SYNERGY_PRODUCT_NAME: ${{ vars.SYNERGY_PRODUCT_NAME }}
@@ -45,41 +17,14 @@ env:
   SYNERGY_VERSION_CHECK: ${{ vars.SYNERGY_VERSION_CHECK }}
 
   # Used to determine the version number format (should simply use the contents of `VERSION` file).
-  SYNERGY_VERSION_RELEASE: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.package-type == 'release') }}
+  SYNERGY_VERSION_RELEASE: true
 
   # Used to determine the version number format (should set the stage part to "snapshot").
-  SYNERGY_VERSION_SNAPSHOT: ${{ github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.package-type == 'snapshot') }}
+  SYNERGY_VERSION_SNAPSHOT: false
 
-  # Gotcha: GitHub checks out a detached head, so the local SHA is not the real head SHA.
-  SYNERGY_VERSION_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SYNERGY_VERSION_GIT_SHA: ${{ github.sha }}
 
 jobs:
-  # Quality gate to allow PR merge, used in the branch protection rules.
-  # Even though "ci-" seems redundant, it adds useful context in the GitHub UI.
-  ci-passed:
-    needs: main
-    runs-on: ubuntu-latest
-
-    steps:
-      - run: echo "✅ CI passed" > $GITHUB_STEP_SUMMARY
-
-  setup-matrix:
-    runs-on: ubuntu-latest
-
-    outputs:
-      matrix: ${{ steps.setup-matrix.outputs.matrix }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup matrix
-        id: setup-matrix
-        uses: symless/actions/setup-matrix@v1
-        with:
-          file: ".github/matrix.yml"
-          target: ${{ inputs.target }}
-
   get-version:
     runs-on: ubuntu-latest
 
@@ -98,7 +43,7 @@ jobs:
         uses: ./.github/actions/get-version
 
   main:
-    needs: [get-version, setup-matrix]
+    needs: [get-version]
     name: main / ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.runs-on }}
     container: ${{ matrix.target.container }}
@@ -109,18 +54,95 @@ jobs:
       # fail due to transient issues unrelated to the build.
       fail-fast: false
 
-      # Build targets are defined in .github/matrix.yml
-      matrix: ${{ fromJSON(needs.setup-matrix.outputs.matrix) }}
+      matrix:
+        target:
+          - name: windows-2022-x64
+            runs-on: windows-latest-16-cores
+            package-os: windows-x64
+
+          - name: macos-14-arm64
+            runs-on: macos-14
+            package-os: macos-arm64
+
+          - name: macos-14-x64
+            runs-on: macos-14-large
+            package-os: macos-x64
+
+          - name: debian-13-x86_64
+            runs-on: ubuntu-latest
+            container: debian:trixie-slim
+
+          - name: debian-12-x86_64
+            runs-on: ubuntu-latest
+            container: debian:bookworm-slim
+
+          - name: ubuntu-25.04-x86_64
+            runs-on: ubuntu-latest
+            container: ubuntu:25.04
+
+          - name: ubuntu-24.04-x86_64
+            runs-on: ubuntu-latest
+            container: ubuntu:24.04
+
+          - name: ubuntu-24.04-arm64
+            runs-on: ubuntu-24.04-8-core-arm64
+            container: ubuntu:24.04
+
+          - name: ubuntu-22.04-x86_64
+            runs-on: ubuntu-latest
+            container: ubuntu:22.04
+
+          - name: ubuntu-22.04-arm64
+            runs-on: ubuntu-24.04-8-core-arm64
+            container: ubuntu:22.04
+
+          - name: fedora-42-arm64
+            runs-on: ubuntu-24.04-8-core-arm64
+            container: fedora:42
+
+          - name: fedora-42-x86_64
+            runs-on: ubuntu-latest
+            container: fedora:42
+
+          - name: fedora-41-x86_64
+            runs-on: ubuntu-latest
+            container: fedora:41
+
+          - name: fedora-40-x86_64
+            runs-on: ubuntu-latest
+            container: fedora:40
+
+          - name: opensuse-tumbleweed-x86_64
+            runs-on: ubuntu-latest
+            container: opensuse/tumbleweed:latest
+
+          - name: arch-linux-x86_64
+            runs-on: ubuntu-latest
+            container: archlinux:latest
+
+          - name: manjaro-x86_64
+            runs-on: ubuntu-latest
+            container: manjarolinux/base:latest
+
+          - name: flatpak-x86_64
+            runs-on: ubuntu-latest
+            arch: x86_64
+            container:
+              image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
+              options: --privileged
+
+          - name: flatpak-arm64
+            runs-on: ubuntu-24.04-8-core-arm64
+            arch: aarch64
+            container:
+              image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
+              options: --privileged
 
     steps:
       - name: Setup variables
         id: vars
         shell: bash
         run: |
-          if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
-            echo "skip-package=true" >> $GITHUB_OUTPUT
-          fi
-
           if [[ "${{ matrix.target.name }}" == flatpak* ]]; then
             echo "is-flatpak=true" >> $GITHUB_OUTPUT
           fi
@@ -208,7 +230,7 @@ jobs:
       # Only replace the SYNERGY_* variables to avoid accidentally replacing other vars
       # like ${PWD} and ${FLATPAK_DEST}.
       - name: Set Flatpak env vars
-        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        if: ${{ steps.vars.outputs.is-flatpak }}
         id: set-flatpak-env-vars
         run: |
           vars=$(cat <<'EOF'
@@ -228,13 +250,13 @@ jobs:
           cat $manifest
 
       - name: Package (Linux)
-        if: ${{ !steps.vars.outputs.skip-package && !steps.vars.outputs.is-flatpak && runner.os == 'Linux' }}
+        if: ${{ !steps.vars.outputs.is-flatpak && runner.os == 'Linux' }}
         run: ./scripts/package.py
         env:
           LINUX_PACKAGE_USER: ${{ steps.setup-linux.outputs.package-user }}
 
       - name: Package (Flatpak)
-        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        if: ${{ steps.vars.outputs.is-flatpak }}
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: ${{ env.SYNERGY_PACKAGE_PREFIX }}_${{ needs.get-version.outputs.version }}_linux_${{ matrix.target.arch }}.flatpak
@@ -244,14 +266,14 @@ jobs:
           upload-artifact: false
 
       - name: Package (Windows)
-        if: ${{ !steps.vars.outputs.skip-package && runner.os == 'Windows' }}
+        if: ${{ runner.os == 'Windows' }}
         run: python ./scripts/package.py
         env:
           WINDOWS_PFX_CERTIFICATE: ${{ secrets.WINDOWS_PFX }}
           WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASS }}
 
       - name: Package (macOS)
-        if: ${{ !steps.vars.outputs.skip-package && runner.os == 'macOS' }}
+        if: ${{ runner.os == 'macOS' }}
         run: ./scripts/package.py
         env:
           APPLE_CODESIGN_ID: ${{ secrets.APPLE_CODESIGN_ID }}
@@ -262,7 +284,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Copy Flatpak bundle to dist
-        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        if: ${{ steps.vars.outputs.is-flatpak }}
         run: |
           mkdir -p dist
           cp *.flatpak dist/
@@ -270,14 +292,13 @@ jobs:
 
       - name: Upload to GitHub
         uses: actions/upload-artifact@v4
-        if: ${{ !steps.vars.outputs.skip-package }}
         with:
           name: package-${{ env.SYNERGY_PACKAGE_PREFIX }}-${{ needs.get-version.outputs.version }}-${{ matrix.target.name }}
           path: dist
           if-no-files-found: error
 
       - name: Report failure
-        if: ${{ failure() && github.event_name != 'pull_request' }}
+        if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1
         with:
           channel-id: ${{ secrets.SLACK_NOTIFY_CHANNEL_ID }}
@@ -291,7 +312,7 @@ jobs:
   main-upload:
     runs-on: ubuntu-latest
     needs: [main, get-version]
-    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release') }}
+    if: ${{ needs.main.result == 'success' }}
 
     steps:
       - name: Checkout
@@ -307,6 +328,12 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber
+        shell: bash
+
       - name: AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -318,7 +345,7 @@ jobs:
         run: |
           source_dir="./dist/"
           version="${{ needs.get-version.outputs.version }}"
-          s3_uri="${{ inputs.aws-s3-uri || format('s3://{0}/{1}', vars.AWS_S3_BUCKET, vars.AWS_S3_UPLOAD_DIR) }}"
+          s3_uri="${{ format('s3://{0}/{1}', vars.AWS_S3_BUCKET, vars.AWS_S3_UPLOAD_DIR) }}"
 
           # Strip trailing slash to avoid double slash in URL
           s3_uri="${s3_uri%/}"
@@ -340,4 +367,3 @@ jobs:
           aws s3 cp $source_dir $url --recursive
 
         shell: bash
-

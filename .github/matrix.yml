@@ -51,7 +51,7 @@ target:
     runs-on: ubuntu-latest
     container: fedora:41
 
-  - name: fedora-40-x86_84
+  - name: fedora-40-x86_64
     runs-on: ubuntu-latest
     container: fedora:40
 

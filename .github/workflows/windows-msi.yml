@@ -1,18 +1,8 @@
 name: Windows MSI
 
 on:
-  workflow_dispatch:
-    inputs:
-      test-release:
-        description: "Test release"
-        required: false
-        default: false
-        type: boolean
-  push:
-    branches:
-      - '**'
-    tags:
-      - '0.19.0'
+  release:
+    types: [published]
 
 jobs:
   build-windows-msi:
@@ -59,17 +49,7 @@ jobs:
         id: setver
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            $ver = $env:GITHUB_REF_NAME
-          } else {
-            $base = ''
-            if (Test-Path VERSION) {
-              $base = (Get-Content VERSION -Raw).Trim()
-            }
-            if (-not $base) { $base = '0.0.0' }
-            $sha = $env:GITHUB_SHA.Substring(0,7)
-            $ver = "$base-dev+$sha"
-          }
+          $ver = $env:GITHUB_REF_NAME
           echo "SYNERGY_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare Python venv and requirements
@@ -106,6 +86,3 @@ jobs:
           name: synergy-msi-${{ env.SYNERGY_VERSION }}
           path: dist/*.msi
           if-no-files-found: error
-
-
-
